@@ -699,6 +699,10 @@ class FaceCaptionModel(nn.Module):
 
             print('self.TOKEN_LENGTH: ', self.TOKEN_LENGTH)
 
+            print("start_token_index: ", start_token_index)
+
+            print("batch_target: ", batch_target)
+
             target = batch_target
 
             targets_for_loss = target.clone()
@@ -766,25 +770,37 @@ class FaceCaptionModel(nn.Module):
                         print("peid logits: ", peid_logits)
                         # the list of samples where at timestamp t, you have words or personids
                         # batch_data['target_type'][:, t] for t == 0 is [2, 1]
-                        word_idx = target_type[:, t] == 1  # [False, True]
-                        peid_idx = target_type[:, t] == 2  # [True, False]
+                        print("target type: ", target_type[:, t])
+                        word_idx = target_type[:, t] == 2  # [False, True]
+                        peid_idx = target_type[:, t] == 1  # [True, False]
+
+                        word_idx = word_idx[len_mask[:,t].bool()]
+                        peid_idx = peid_idx[len_mask[:,t].bool()]
+                        targets_for_loss_sliced = targets_for_loss[:,t][len_mask[:,t].bool()]
+
 
                         print("word_idx and peid_idx:", word_idx, peid_idx)
 
                         print("targets_for_loss[:,t] shape: ",targets_for_loss[:,t].shape)
                         print("targets for loss: ", targets_for_loss[:,t])
+                        print("targets_for_loss_sliced ",targets_for_loss_sliced)
                         
 
                         if torch.any(word_idx):
                             print(" calculating loss for word_idx")
-                            loss += self.cross_loss(word_logits[word_idx], targets_for_loss[:,t][word_idx])
+                            print("word_logits[word_idx], targets_for_loss_sliced[word_idx] shape: ", word_logits[word_idx].shape, targets_for_loss_sliced[word_idx].shape)
+                            loss += self.cross_loss(word_logits[word_idx], targets_for_loss_sliced[word_idx])
                             print("word loss calculated successfully")
                         if torch.any(peid_idx):
-                            loss += self.cross_loss(peid_logits[peid_idx], targets_for_loss[:,t][peid_idx])
+                            print("peid_logits[peid_idx], targets_for_loss[:,t][peid_idx] shape: ", peid_logits[peid_idx].shape, targets_for_loss_sliced[peid_idx].shape)
+                            loss += self.cross_loss(peid_logits[peid_idx], targets_for_loss_sliced[peid_idx])
+
+                            print(" person loss calculated successfully")
 
         
 
                         print("loss", loss)
+            loss = loss/max_batch_seq_len
             print("batch loss: ", loss)
             print("loss calculated")
             loss_calc_time = time.time()
